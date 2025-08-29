@@ -15,9 +15,17 @@ Permite a los organizadores:
 
 ## Estructura del repositorio
 
-/frontend -> Código de la aplicación web
-/backend -> API y lógica de negocio
-/docs -> Documentación, diagramas y mockups
+project/
+├─ frontend/
+│ ├─ src/
+│ ├─ public/
+├─ backend/
+│ ├─ controllers/
+│ ├─ models/
+├─ docs/
+│ ├─ diagramas/
+│ ├─ mockups/
+└─ README.md
 
 ## Funcionalidades principales
 - Registro de entradas por evento.
