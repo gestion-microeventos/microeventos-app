@@ -15,6 +15,7 @@ Permite a los organizadores:
 
 ## Estructura del repositorio
 
+```bash
 project/
 ├─ frontend/
 │ ├─ src/
@@ -26,6 +27,7 @@ project/
 │ ├─ diagramas/
 │ ├─ mockups/
 └─ README.md
+```
 
 ## Funcionalidades principales
 - Registro de entradas por evento.
