@@ -9,9 +9,9 @@ Permite a los organizadores:
 - Generar reportes de ventas y asistencia.
 
 ## Tecnologías
-- Frontend: React / Vue / Angular (a definir)
-- Backend: Node.js / Python Flask / Django (a definir)
-- Base de datos: PostgreSQL / MongoDB (a definir)
+- Frontend: por asignar
+- Backend: por asignar
+- Base de datos: por asignar
 
 ## Estructura del repositorio
 
