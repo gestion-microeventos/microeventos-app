@@ -1,0 +1,48 @@
+# Ignora archivos y directorios generados por Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+
+# Ignora entornos virtuales
+venv/
+env/
+.venv/
+venv3/
+env3/
+# Agrega aquí cualquier otro nombre que uses para tu entorno virtual
+
+# Ignora archivos de bases de datos locales (si usas SQLite, por ejemplo)
+# *.sqlite
+# *.sqlite3
+
+# Ignora archivos de configuración sensibles como credenciales de base de datos
+.env
+credentials.env
+
+# Ignora archivos y directorios de logs
+logs/
+*.log
+
+# Ignora archivos de configuración de IDEs (opcional, pero recomendado)
+# Pycharm
+.idea/
+*.iml
+# VS Code
+.vscode/
+
+# Ignora archivos generados por compilación o temporales
+build/
+dist/
+*.o
+*.a
+*.so
+
+# Archivos de configuracion de bases de datos (ej. PostgreSQL)
+# Si utilizas pgAdmin y guardas conexiones o scripts, podrías querer ignorarlos
+# .pgadmin/
+
+# Archivos de pruebas (opcional, si generas archivos de test temporalmente)
+# *.test
