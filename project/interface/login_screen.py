@@ -24,26 +24,28 @@ class LoginScreen(tk.Tk):
     """
     def _configure_styles(self):
         style = ttk.Style(self)
+        login_button = 'Login.TButton'
+        create_button = 'Create.TButton'
         
         # Estilo para el botón de Iniciar Sesión (verde con borde y letra verde oscuro)
-        style.configure('Login.TButton', 
+        style.configure(login_button, 
                         background='#A5D6A7',  # Verde claro para el fondo
                         foreground='#388E3C',  # Verde oscuro para la letra
                         font=('Arial', 10, 'bold'),
                         borderwidth=2,
                         relief="solid")
-        style.map('Login.TButton', 
+        style.map(login_button, 
                   background=[('active', '#C8E6C9')], # Verde muy claro al pasar el mouse
                   foreground=[('active', '#1B5E20')]) # Verde oscuro al pasar el mouse
 
         # Estilo para el botón de Crear Cuenta (azul con borde y letra azul oscuro)
-        style.configure('Create.TButton', 
+        style.configure(create_button, 
                         background='#BBDEFB',  # Azul claro para el fondo
                         foreground='#1976D2',  # Azul oscuro para la letra
                         font=('Arial', 10, 'bold'),
                         borderwidth=2,
                         relief="solid")
-        style.map('Create.TButton', 
+        style.map(create_button,
                   background=[('active', '#E3F2FD')], # Azul muy claro al pasar el mouse
                   foreground=[('active', '#0D47A1')]) # Azul oscuro al pasar el mouse
                   
