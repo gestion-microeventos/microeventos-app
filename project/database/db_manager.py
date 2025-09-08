@@ -57,12 +57,12 @@ def execute_query(query, params=None):
     finally:
         close_connection(conn)
 
-def insert_events_query(name, description, event_date, category, price, available_tickets):
+def insert_events_query(name, description, event_date, category, price, available_tickets, creator_id):
     query = """
-        INSERT INTO events (name, description, event_date, category, price, available_tickets)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO events (name, description, event_date, category, price, available_tickets.creator_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
-    params = (name, description, event_date, category, price, available_tickets,)
+    params = (name, description, event_date, category, price, available_tickets, creator_id,)
     result = execute_query(query, params)
     if result:
         return result
@@ -74,17 +74,6 @@ def insert_users_query(username, password_hash):
         VALUES (%s, %s)
     """
     params = (username, password_hash,)
-    result = execute_query(query, params)
-    if result:
-        return result
-    return None
-
-def insert_sales_query(name, description, event_date, category, price, available_tickets):
-    query = """
-        INSERT INTO sales (name, description, event_date, category, price, available_tickets)
-        VALUES (%s, %s, %s, %s)
-    """
-    params = (name, description, event_date, category, price, available_tickets,)
     result = execute_query(query, params)
     if result:
         return result

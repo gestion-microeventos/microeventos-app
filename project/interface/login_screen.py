@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from ..services import auth_manager, user_manager
+from .main_window import MainWindow
 
 """
     Clase que representa la ventana de inicio de sesión.
@@ -89,7 +90,17 @@ class LoginScreen(tk.Tk):
         authenticated, role = auth_manager.authenticate_user(username, password)
         if authenticated:
             messagebox.showinfo("Éxito", f"¡Bienvenido {username}! Rol: {role}")
-            # Aquí podrías abrir la ventana principal de la aplicación
+            # Paso 1: Oculta la ventana de login
+            self.withdraw()
+
+            # Paso 2: Crea una instancia de la ventana principal y la muestra
+            main_window = MainWindow(self) # Pasa 'self' como master
+
+            # Opcional: Bucle de eventos para la nueva ventana
+            self.wait_window(main_window)
+
+            # Paso 3: Al cerrar la ventana principal, se muestra de nuevo el login
+            self.deiconify()
             
         else:
             messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
@@ -102,11 +113,3 @@ class LoginScreen(tk.Tk):
             return
         user_manager.create_user(username, password)
         messagebox.showinfo("Crear Cuenta", "¡Se ha creado su cuenta exitosamente!")
-
-
-
-
-
-if __name__ == "__main__":
-    app = LoginScreen()
-    app.mainloop()
