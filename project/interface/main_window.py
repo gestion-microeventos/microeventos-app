@@ -63,8 +63,15 @@ class MainWindow(tk.Toplevel):
 
         my_events_frame = ttk.Frame(main_pane, padding=10)
         main_pane.add(my_events_frame, weight=1)
-
         ttk.Label(my_events_frame, text="Mis Eventos", font=("Arial", 14, "bold")).pack(pady=5)
+        # 📌 Agrega los widgets de filtro para "Mis Eventos"
+        my_events_filter_frame = ttk.Frame(my_events_frame)
+        my_events_filter_frame.pack(fill="x", pady=(0, 10))
+        ttk.Label(my_events_filter_frame, text="Buscar:").pack(side="left", padx=(0, 5))
+        self.my_events_search_entry = ttk.Entry(my_events_filter_frame, width=30)
+        self.my_events_search_entry.pack(side="left", padx=5)
+        ttk.Button(my_events_filter_frame, text="Filtrar", command=self._apply_my_events_filter).pack(side="left", padx=5)
+        ttk.Button(my_events_filter_frame, text="Restablecer", command=self._reset_my_events_filter).pack(side="left", padx=5)
         #Mostrar los datos de Mis Eventos
         self.my_events_tree = ttk.Treeview(my_events_frame, columns=("Nombre", "Fecha", "Categoría", "Precio", "Cupos"), show="headings")
         self.my_events_tree.heading("Nombre", text="Nombre")
@@ -85,8 +92,15 @@ class MainWindow(tk.Toplevel):
 
         all_events_frame = ttk.Frame(main_pane, padding=10)
         main_pane.add(all_events_frame, weight=1)
-
         ttk.Label(all_events_frame, text="Todos los Eventos", font=("Arial", 14, "bold")).pack(pady=5)
+        # 📌 Agrega los widgets de filtro para "Todos los Eventos"
+        all_events_filter_frame = ttk.Frame(all_events_frame)
+        all_events_filter_frame.pack(fill="x", pady=(0, 10))
+        ttk.Label(all_events_filter_frame, text="Buscar:").pack(side="left", padx=(0, 5))
+        self.all_events_search_entry = ttk.Entry(all_events_filter_frame, width=30)
+        self.all_events_search_entry.pack(side="left", padx=5)
+        ttk.Button(all_events_filter_frame, text="Filtrar", command=self._apply_all_events_filter).pack(side="left", padx=5)
+        ttk.Button(all_events_filter_frame, text="Restablecer", command=self._reset_all_events_filter).pack(side="left", padx=5)
         #Mostrar datos de Todos los Eventps
         self.all_events_tree = ttk.Treeview(all_events_frame, columns=("Nombre", "Fecha", "Categoría", "Precio", "Cupos"), show="headings")
         self.all_events_tree.heading("Nombre", text="Nombre")
@@ -140,20 +154,20 @@ class MainWindow(tk.Toplevel):
         # Vuelve a habilitar la ventana principal
         self.attributes('-disabled', False)
         # 📌 Recarga ambas tablas al cerrar el popup
-        self._load_my_events()
+        self._load_my_events(search_term="")
         self._load_all_events()
     
     """
         Carga todos los eventos desde la base de datos y los muestra en el Treeview.
     """
-    def _load_all_events(self):
+    def _load_all_events(self, search_term=""):
         
         # Limpia el Treeview para evitar duplicados cada vez que se carga
         for item in self.all_events_tree.get_children():
             self.all_events_tree.delete(item)
 
         # Obtiene todos los eventos desde el gestor de eventos
-        events = event_manager.get_all_events()
+        events = event_manager.get_all_events(search_term)
 
         if events:
             for event in events:
@@ -166,13 +180,13 @@ class MainWindow(tk.Toplevel):
     """
         Carga los eventos creados por el usuario actual y los muestra en el Treeview.
     """
-    def _load_my_events(self):
+    def _load_my_events(self, search_term=""):
         
         for item in self.my_events_tree.get_children():
             self.my_events_tree.delete(item)
 
         # 📌 Llama a una nueva función en event_manager que filtre por user_id
-        my_events = event_manager.get_events_by_creator(self.user_id)
+        my_events = event_manager.get_events_by_creator(self.user_id, search_term)
 
         if my_events:
             for event in my_events:
@@ -222,3 +236,21 @@ class MainWindow(tk.Toplevel):
         details_window = EventDetailsWindow(self, event_data, self.user_id)
         self.wait_window(details_window)
         self.attributes('-disabled', False)
+    
+    def _apply_my_events_filter(self):
+        search_term = self.my_events_search_entry.get()
+        self._load_my_events(search_term)
+    
+    def _reset_my_events_filter(self):
+        self.my_events_search_entry.delete(0, tk.END)
+        self._load_my_events()
+    
+    def _apply_all_events_filter(self):
+        search_term = self.all_events_search_entry.get()
+        self._load_all_events(search_term)
+
+    def _reset_all_events_filter(self):
+        self.all_events_search_entry.delete(0, tk.END)
+        self._load_all_events()
+    
+

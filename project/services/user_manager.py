@@ -1,5 +1,6 @@
 from ..database import db_manager
 import bcrypt
+from tkinter import messagebox
 """
     Crea un nuevo usuario en la base de datos de forma segura.
     Retorna True si la creación fue exitosa, False en caso contrario.
@@ -20,6 +21,7 @@ def create_user(username, password):
     try:
         if db_manager.insert_users_query(username, password_hash_str) is not None:
             print(f"Usuario '{username}' creado exitosamente.")
+            messagebox.showinfo("Crear Cuenta", "¡Se ha creado su cuenta exitosamente!")
             return True
         else:
             print(f"Error al intentar crear el usuario '{username}'.")

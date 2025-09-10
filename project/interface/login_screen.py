@@ -104,4 +104,4 @@ class LoginScreen(tk.Tk):
             messagebox.showwarning("Crear Cuenta", "Por favor, ingrese un nombre de usuario y contraseña.")
             return
         user_manager.create_user(username, password)
-        messagebox.showinfo("Crear Cuenta", "¡Se ha creado su cuenta exitosamente!")
+        
