@@ -19,7 +19,7 @@ def create_event(event_data):
     try:
         price = Decimal(event_data['price']) 
         tickets = int(event_data['tickets'])
-        event_date = datetime.strptime(event_data['date'], '%d/%m/%y')
+        event_date = datetime.strptime(event_data['date'], '%Y/%m/%d')
         
     except (ValueError, KeyError) as e:
         messagebox.showerror("Error", "Los datos de precio, tickets o fecha no tienen el formato correcto.")
@@ -110,7 +110,7 @@ def get_events_by_creator(creator_id):
 """
 def get_event_by_id(event_id):
     
-    query = "SELECT name, description, event_date, category, price, available_tickets FROM events WHERE id = %s;"
+    query = "SELECT id, name, description, event_date, category, price, available_tickets, creator_id FROM events WHERE id = %s;"
     params = (event_id,)
 
     try:
@@ -137,4 +137,71 @@ def delete_event(event_id, user_id):
             return False
     except Exception as e:
         print(f"Error al eliminar el evento: {e}")
+        return False
+    
+
+    
+def update_event(event_data):
+    """
+    Actualiza un evento existente en la base de datos con los nuevos datos.
+    
+    Args:
+        event_data (dict): Un diccionario con los datos del evento a actualizar.
+    
+    Returns:
+        bool: True si la actualización fue exitosa, False en caso contrario.
+    """
+    try:
+        # 1. Validar los datos
+        name = event_data.get('name')
+        description = event_data.get('description')
+        event_date_str = event_data.get('date')
+        category = event_data.get('category')
+        price_str = event_data.get('price')
+        tickets_str = event_data.get('tickets')
+        event_id = event_data.get('id')
+        creator_id = event_data.get('creator_id')
+
+        if not all([name, event_date_str, price_str, tickets_str, event_id, creator_id]):
+            messagebox.showerror("Error de Validación", "Todos los campos obligatorios deben estar llenos.")
+            return False
+
+        # 2. Convertir tipos de datos
+        try:
+            event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
+        except ValueError:
+            event_date = datetime.strptime(event_date_str, '%Y/%m/%d')
+            
+        price = float(price_str)
+        tickets = int(tickets_str)
+        
+        # 3. Preparar la consulta SQL
+        query = """
+            UPDATE events
+            SET
+                name = %s,
+                description = %s,
+                event_date = %s,
+                category = %s,
+                price = %s,
+                available_tickets = %s
+            WHERE id = %s AND creator_id = %s;
+        """
+        params = (name, description, event_date, category, price, tickets, event_id, creator_id)
+        
+        # 4. Ejecutar la consulta
+        success = db_manager.execute_query(query, params)
+        
+        if success:
+            messagebox.showinfo("Éxito", "Evento actualizado exitosamente.")
+        else:
+            messagebox.showerror("Error", "No se pudo actualizar el evento. Es posible que no tengas permisos para editarlo.")
+            
+        return success
+    
+    except ValueError as ve:
+        messagebox.showerror("Error de Formato", f"Por favor, asegúrate de que el precio y los cupos sean números válidos. Error: {ve}")
+        return False
+    except Exception as e:
+        messagebox.showerror("Error de Actualización", f"Ocurrió un error al actualizar el evento: {e}")
         return False

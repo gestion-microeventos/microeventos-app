@@ -209,7 +209,8 @@ class MainWindow(tk.Toplevel):
         if not tags:
             print("Error: No se pudo encontrar el ID del evento.")
             return
-            
+        
+        
         event_id = tags[0] # El ID de la base de datos es el primer elemento de la tupla de tags
 
         event_data = event_manager.get_event_by_id(event_id)
