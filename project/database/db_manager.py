@@ -44,29 +44,21 @@ def close_connection(conn):
 def execute_query(query, params=None):
     conn = get_connection()
     if conn is None:
-        return None
+        # No hay conexión, falló la operación
+        return False
+
     try:
         with conn.cursor() as cursor:
+            # Ejecuta la consulta. Para INSERT/UPDATE/DELETE, no hay "resultados para fetch".
             cursor.execute(query, params)
-            conn.commit()
-            return cursor.fetchall()
-    except psycopg2.DatabaseError as e:
+        conn.commit() # Confirma la transacción
+        return True # La operación fue exitosa
+    except Exception as e:
+        conn.rollback() # Deshace la transacción si hubo un error
         print(f"Error al ejecutar la consulta: {e}")
-        conn.rollback()
-        return None
+        return False # La operación falló
     finally:
-        close_connection(conn)
-
-def insert_events_query(name, description, event_date, category, price, available_tickets, creator_id):
-    query = """
-        INSERT INTO events (name, description, event_date, category, price, available_tickets.creator_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """
-    params = (name, description, event_date, category, price, available_tickets, creator_id,)
-    result = execute_query(query, params)
-    if result:
-        return result
-    return None
+        close_connection(conn) # Asegura que la conexión se cierre
 
 def insert_users_query(username, password_hash):
     query = """
@@ -78,3 +70,61 @@ def insert_users_query(username, password_hash):
     if result:
         return result
     return None
+
+"""
+    Ejecuta una consulta SQL y retorna todos los resultados como una lista de diccionarios.
+"""
+def fetch_all_query(query, params=None):
+    
+    conn = get_connection()
+    if conn is None:
+        return []
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            
+            # Obtiene los nombres de las columnas
+            columns = [col[0] for col in cursor.description]
+            
+            # Obtiene todas las filas y las convierte a una lista de diccionarios
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+            return results
+            
+    except Exception as e:
+        print(f"Error al ejecutar la consulta de obtención de datos: {e}")
+        return []
+    finally:
+        close_connection(conn)
+
+def fetch_one_query(query, params=None):
+    """
+    Ejecuta una consulta SQL y retorna la primera fila de resultados como un diccionario.
+    Retorna None si no hay resultados o si ocurre un error.
+    """
+    conn = get_connection()
+    if conn is None:
+        return None
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(query, params)
+            
+            # Obtiene los nombres de las columnas
+            columns = [desc[0] for desc in cursor.description]
+            
+            # Obtiene la primera fila
+            row = cursor.fetchone()
+            
+            # Si se encontró una fila, la convierte en un diccionario
+            if row:
+                return dict(zip(columns, row))
+            else:
+                return None
+            
+    except Exception as e:
+        print(f"Error al ejecutar la consulta de obtención de datos: {e}")
+        return None
+    finally:
+        close_connection(conn)

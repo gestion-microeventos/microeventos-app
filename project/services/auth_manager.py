@@ -3,36 +3,33 @@ import bcrypt
 
 # pip install bcrypt
 
-"""
-    Verifica las credenciales del usuario y retorna su rol si son válidas.
-"""
 def authenticate_user(username, password):
-    
-    # 1. Obtener la conexión a la base de datos
+    """
+    Verifica las credenciales del usuario y retorna su ID si son válidas.
+    """
     conn = db_manager.get_connection()
     if not conn:
-        return False, None
-    try:
+        return None  # Retorna None si no se puede conectar
 
-        # 2. Consultar el usuario por su nombre
+    try:
+        # 1. Consultar el usuario por su nombre, obteniendo el ID y el hash
         with conn.cursor() as cursor:
-            query = "SELECT password_hash, role FROM users WHERE username = %s;"
+            query = "SELECT id, password_hash FROM users WHERE username = %s;"
             cursor.execute(query, (username,))
             user_data = cursor.fetchone()
 
-        # 3. Verificar si el usuario existe
+        # 2. Verificar si el usuario existe
         if user_data:
-            stored_hash = user_data[0].encode('utf-8')
-            user_role = user_data[1]
+            user_id = user_data[0]
+            stored_hash = user_data[1].encode('utf-8')
 
-            # 4. Verificar la contraseña
+            # 3. Verificar la contraseña
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
-                return True, user_role
+                return user_id  # Retorna el ID del usuario
     except Exception as e:
         print(f"Error en la autenticación: {e}")
-        return False, None
     finally:
-        # 5. Cerrar la conexión
+        # 4. Cerrar la conexión
         db_manager.close_connection(conn)
     
-    return False, None
+    return None  # Retorna None si la autenticación falla por cualquier motivo

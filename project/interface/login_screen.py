@@ -87,21 +87,13 @@ class LoginScreen(tk.Tk):
     def attempt_login(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
-        authenticated, role = auth_manager.authenticate_user(username, password)
-        if authenticated:
-            messagebox.showinfo("Éxito", f"¡Bienvenido {username}! Rol: {role}")
-            # Paso 1: Oculta la ventana de login
+        user_id = auth_manager.authenticate_user(username, password)
+        if user_id:
             self.withdraw()
-
-            # Paso 2: Crea una instancia de la ventana principal y la muestra
-            main_window = MainWindow(self) # Pasa 'self' como master
-
-            # Opcional: Bucle de eventos para la nueva ventana
+            # 📌 Pasa el user_id a la MainWindow
+            main_window = MainWindow(self, user_id) 
             self.wait_window(main_window)
-
-            # Paso 3: Al cerrar la ventana principal, se muestra de nuevo el login
             self.deiconify()
-            
         else:
             messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
 
