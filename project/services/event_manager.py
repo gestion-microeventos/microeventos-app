@@ -75,12 +75,17 @@ def _validate_event_data(data):
         list of dict: Una lista de diccionarios, cada uno representando un evento.
                       Retorna una lista vacía si no hay eventos.
 """
-def get_all_events():
+def get_all_events(search_term=""):
     
-    query = "SELECT id, name, event_date, category, price, available_tickets FROM events;"
-    
+    query = "SELECT id, name, event_date, category, price, available_tickets FROM events"
+    params = [] 
+    if search_term:
+        query += " WHERE (name ILIKE %s OR TO_CHAR(event_date, 'YYYY-MM-DD') ILIKE %s OR description ILIKE %s OR category ILIKE %s OR TO_CHAR(price, '999999.99') ILIKE %s OR TO_CHAR(available_tickets, '999999') ILIKE %s)"
+        search_param = f"%{search_term}%"
+        params.extend([search_param, search_param, search_param, search_param, search_param, search_param]) # Ahora esto funciona porque params es una lista
+
     try:
-        events = db_manager.fetch_all_query(query)
+        events = db_manager.fetch_all_query(query, tuple(params))
         return events
     except Exception as e:
         print(f"Error al obtener todos los eventos: {e}")
@@ -89,13 +94,19 @@ def get_all_events():
 """
     Obtiene todos los eventos creados por un usuario específico.
 """
-def get_events_by_creator(creator_id):
+def get_events_by_creator(creator_id, search_term=""):
     
-    query = "SELECT id, name, event_date, category, price, available_tickets FROM events WHERE creator_id = %s;"
-    params = (creator_id,)
+    query = "SELECT id, name, event_date, category, price, available_tickets FROM events WHERE creator_id = %s"
+    params = [creator_id]
+
+    if search_term:
+        # Aquí es donde se aplica el filtro de búsqueda en la consulta SQL
+        query += " AND (name ILIKE %s OR TO_CHAR(event_date, 'YYYY-MM-DD') ILIKE %s OR description ILIKE %s OR category ILIKE %s OR TO_CHAR(price, '999999.99') ILIKE %s) OR TO_CHAR(available_tickets, '999999') ILIKE %s"
+        search_param = f"%{search_term}%" # El '%' es para buscar coincidencias parciales (como un LIKE en SQL)
+        params.extend([search_param, search_param, search_param, search_param, search_param, search_param])
 
     try:
-        events = db_manager.fetch_all_query(query, params)
+        events = db_manager.fetch_all_query(query, tuple(params)) 
         return events
     except Exception as e:
         print(f"Error al obtener los eventos del creador: {e}")
