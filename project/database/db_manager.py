@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 # Cargar las variables de entorno del archivo .env
 load_dotenv()
 
-# pip install psycopg2-binary
-# pip install dotenv
-
 """
     Establece y devuelve una conexión a la base de datos PostgreSQL.
     Retorna el objeto de conexión si es exitoso, None en caso de error.

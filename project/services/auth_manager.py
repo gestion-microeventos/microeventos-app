@@ -1,8 +1,6 @@
 from ..database import db_manager
 import bcrypt
 
-# pip install bcrypt
-
 def authenticate_user(username, password):
     """
     Verifica las credenciales del usuario y retorna su ID si son válidas.
