@@ -126,3 +126,20 @@ def fetch_one_query(query, params=None):
         return None
     finally:
         close_connection(conn)
+    
+def user_exists(username):
+    """
+    Verifica si un usuario ya existe en la base de datos.
+    Retorna True si existe, False si no.
+    """
+    query = "SELECT COUNT(*) FROM users WHERE username = %s" # Ajusta 'users' al nombre de tu tabla de usuarios
+    try:
+        # db_manager.fetch_one_query debería retornar una tupla con el conteo (ej: (1,) o (0,))
+        result = fetch_one_query(query, (username,)) 
+        if result and result[0] > 0:
+            return True  # El usuario existe
+        else:
+            return False # El usuario no existe
+    except Exception as e:
+        print(f"Error al verificar existencia de usuario '{username}': {e}")
+        return False # En caso de error, asumimos que no existe para evitar bloqueos innecesarios, o puedes retornar False/True basado en tu lógica de seguridad.
