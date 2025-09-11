@@ -4,6 +4,9 @@ from .new_event import NewEventWindow
 from ..services import event_manager
 from .event_details import EventDetailsWindow
 from .main_window_components.main_banner import MainBanner
+from .tickets.build_events_view import build_events_view
+from .tickets.build_tickets_view import build_tickets_view
+from .tickets.show_view import show_view
 
 class MainWindow(tk.Toplevel):
     """
@@ -53,95 +56,30 @@ class MainWindow(tk.Toplevel):
                   foreground=[("active", "#dc3545")])
 
 
-
-    """
-        Crea y organiza los widgets de la ventana principal.
-    """  
     def _create_widgets(self):
-
-        banner = MainBanner(self, on_logout=self.close_window)
-        banner.pack(fill=tk.X, pady=(0,5))
+        banner = MainBanner(self, on_switch=self._show_view, on_logout=self.close_window)
+        banner.pack(fill=tk.X, pady=(0, 5))
 
         self._create_summary_header()
-        
-        main_pane = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
-        main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        my_events_frame = ttk.Frame(main_pane, padding=10)
-        main_pane.add(my_events_frame, weight=1)
-        ttk.Label(my_events_frame, text="Mis Eventos", font=("Arial", 14, "bold")).pack(pady=5)
-        # 📌 Agrega los widgets de filtro para "Mis Eventos"
-        my_events_filter_frame = ttk.Frame(my_events_frame)
-        my_events_filter_frame.pack(fill="x", pady=(0, 10))
-        ttk.Label(my_events_filter_frame, text="Buscar:").pack(side="left", padx=(0, 5))
-        self.my_events_search_entry = ttk.Entry(my_events_filter_frame, width=30)
-        self.my_events_search_entry.pack(side="left", padx=5)
-        ttk.Button(my_events_filter_frame, text="Filtrar", command=self._apply_my_events_filter).pack(side="left", padx=5)
-        ttk.Button(my_events_filter_frame, text="Restablecer", command=self._reset_my_events_filter).pack(side="left", padx=5)
-        #Mostrar los datos de Mis Eventos
-        self.my_events_tree = ttk.Treeview(my_events_frame, columns=("Nombre", "Fecha", "Categoría", "Precio", "Cupos"), show="headings")
-        self.my_events_tree.heading("Nombre", text="Nombre")
-        self.my_events_tree.heading("Fecha", text="Fecha")
-        self.my_events_tree.heading("Categoría", text="Categoría")
-        self.my_events_tree.heading("Precio", text="Precio")
-        self.my_events_tree.heading("Cupos", text="Cupos")
-        self.my_events_tree.column("Nombre", width=120)
-        self.my_events_tree.column("Fecha", width=120)
-        self.my_events_tree.column("Categoría", width=90)
-        self.my_events_tree.column("Precio", width=70, anchor=tk.CENTER)
-        self.my_events_tree.column("Cupos", width=70, anchor=tk.CENTER)
-        self.my_events_tree.bind("<<TreeviewSelect>>", self._on_event_select)
+        # Contenedor de vistas
+        self.views_container = ttk.Frame(self)
+        self.views_container.pack(fill=tk.BOTH, expand=True)
 
-        self.my_events_tree.pack(fill=tk.BOTH, expand=True)
-        # 📌 Llama a la función para cargar MIS eventos
-        self._load_my_events()
+        # Frames de cada vista
+        self.events_view  = ttk.Frame(self.views_container)
+        self.tickets_view = ttk.Frame(self.views_container)
 
-        all_events_frame = ttk.Frame(main_pane, padding=10)
-        main_pane.add(all_events_frame, weight=1)
-        ttk.Label(all_events_frame, text="Todos los Eventos", font=("Arial", 14, "bold")).pack(pady=5)
-        # 📌 Agrega los widgets de filtro para "Todos los Eventos"
-        all_events_filter_frame = ttk.Frame(all_events_frame)
-        all_events_filter_frame.pack(fill="x", pady=(0, 10))
-        ttk.Label(all_events_filter_frame, text="Buscar:").pack(side="left", padx=(0, 5))
-        self.all_events_search_entry = ttk.Entry(all_events_filter_frame, width=30)
-        self.all_events_search_entry.pack(side="left", padx=5)
-        ttk.Button(all_events_filter_frame, text="Filtrar", command=self._apply_all_events_filter).pack(side="left", padx=5)
-        ttk.Button(all_events_filter_frame, text="Restablecer", command=self._reset_all_events_filter).pack(side="left", padx=5)
-        #Mostrar datos de Todos los Eventps
-        self.all_events_tree = ttk.Treeview(all_events_frame, columns=("Nombre", "Fecha", "Categoría", "Precio", "Cupos"), show="headings")
-        self.all_events_tree.heading("Nombre", text="Nombre")
-        self.all_events_tree.heading("Fecha", text="Fecha")
-        self.all_events_tree.heading("Categoría", text="Categoría")
-        self.all_events_tree.heading("Precio", text="Precio")
-        self.all_events_tree.heading("Cupos", text="Cupos")
-        self.all_events_tree.column("Nombre", width=120)
-        self.all_events_tree.column("Fecha", width=120)
-        self.all_events_tree.column("Categoría", width=90)
-        self.all_events_tree.column("Precio", width=70, anchor=tk.CENTER)
-        self.all_events_tree.column("Cupos", width=70, anchor=tk.CENTER)
-        self.all_events_tree.bind("<<TreeviewSelect>>", self._on_event_select)
+        # Construir cada vista (estos builders crean y empaquetan SU propia UI)
+        build_events_view(self.events_view, controller=self)
+        build_tickets_view(self.tickets_view, controller=self)
 
-        self.all_events_tree.pack(fill=tk.BOTH, expand=True)
-        # 📌 Llama a la función para cargar los eventos al iniciar
-        self._load_all_events()
-        
-        # Contenedor para los botones inferiores (centrados)
-        button_frame = ttk.Frame(self)
-        button_frame.pack(side=tk.BOTTOM, pady=10)
+        # Vista inicial
+        self._show_view("events")
 
-        # Botón para crear un evento con el estilo "Blue.TButton"
-        self.create_event_button = ttk.Button(button_frame, 
-                                            text="Crear Evento", 
-                                            style="Blue.TButton",
-                                            command=self._create_event)
-        self.create_event_button.pack(side=tk.LEFT, padx=5)
-
-        # Botón de cerrar sesión con el estilo "Red.TButton"
-        self.logout_button = ttk.Button(button_frame, 
-                                        text="Cerrar Sesión", 
-                                        style="Red.TButton",
-                                        command=self.close_window)
-        self.logout_button.pack(side=tk.LEFT, padx=5)
+    
+    def _show_view(self, view_name: str):
+        show_view(view_name, self.events_view, self.tickets_view)
 
     def _create_summary_header(self):
         summary_frame = ttk.Frame(self)
