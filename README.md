@@ -261,6 +261,7 @@ Construír una aplicación sencilla para una productora local que permita gestio
 #### End-to-End (E2E):
 - Flujo real con servidor FastAPI levantado + UI Tkinter:
 - Crear evento → vender N → validar cupos en UI → refund → revalidar cupos.
+- Agregar, quitar eventos disponibles y cantidad.
 #### Pruebas cruzadas de UI (manuales en equipo):
 - Ciclo 1: individuales.
 - Ciclo 2: consolidado.
