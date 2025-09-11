@@ -1,218 +1,246 @@
-from ..database import db_manager
+# project/services/event_manager.py
+import os
+import requests
+from tkinter import messagebox
 from datetime import datetime
 from decimal import Decimal
-from tkinter import messagebox
+from dotenv import load_dotenv
 
-"""
-    Recibe los datos de un evento, los valida y los inserta en la base de datos.
-    
-    Args:
-        event_data (dict): Un diccionario con los datos del evento.
-    
-    Returns:
-        bool: True si el evento se creó exitosamente, False en caso contrario.
-"""
-def create_event(event_data):
-    if not _validate_event_data(event_data):
-        return False
-    
-    try:
-        price = Decimal(event_data['price']) 
-        tickets = int(event_data['tickets'])
-        event_date = datetime.strptime(event_data['date'], '%Y/%m/%d')
-        
-    except (ValueError, KeyError) as e:
-        messagebox.showerror("Error", "Los datos de precio, tickets o fecha no tienen el formato correcto.")
-        print(f"Error de conversión de datos: {e}")
-        return False
-    
-    # Prepara la consulta SQL
-    query = """
-    INSERT INTO events (name, description, event_date, category, price, available_tickets, creator_id)
-    VALUES (%s, %s, %s, %s, %s, %s, %s);
+load_dotenv()
+API_BASE = os.getenv("API_BASE", "http://localhost:8000").rstrip("/")
+
+
+# ----------------- Helpers -----------------
+def _to_iso_datetime(datestr: str) -> str | None:
     """
-    params = (
-        event_data['name'],
-        event_data['description'],
-        event_date,
-        event_data['category'],
-        price,
-        tickets,
-        event_data['creator_id']
-    )
-    
-    # Ejecuta la consulta directamente desde db_manager
-    try:
-        success = db_manager.execute_query(query, params)
-        if success:
-            messagebox.showinfo("Éxito", "Evento guardado exitosamente.")
-            return True
-        else:
-            messagebox.showerror("Error", "Hubo un problema al guardar el evento en la base de datos.")
-            return False
-    except Exception as e:
-        messagebox.showerror("Error", f"Ocurrió un error inesperado: {e}")
-        print(f"Error al ejecutar la consulta: {e}")
-        return False
-    
-    
-"""
-    Función auxiliar para validar que todos los campos requeridos existen.
-"""
-def _validate_event_data(data):
-    required_fields = ['name', 'description', 'date', 'category', 'price', 'tickets', 'creator_id']
-    for field in required_fields:
-        if not data.get(field):
-            messagebox.showerror("Error", f"El campo '{field}' es requerido.")
+    Convierte una fecha de entrada ('YYYY-MM-DD', 'YYYY/MM/DD' o 'DD/MM/YYYY')
+    a ISO 'YYYY-MM-DDTHH:MM:SS' (hora fija 09:00 para evitar tz).
+    """
+    if not datestr:
+        return None
+
+    # Formatos que pueden venir desde la UI
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+        try:
+            dt = datetime.strptime(datestr, fmt)
+            return dt.strftime("%Y-%m-%dT09:00:00")
+        except ValueError:
+            pass
+    return None
+
+
+def _validate_event_data(data: dict) -> bool:
+    required = ['name', 'description', 'date', 'category', 'price', 'tickets', 'creator_id']
+    for f in required:
+        if data.get(f) in (None, "", []):
+            messagebox.showerror("Error", f"El campo '{f}' es requerido.")
             return False
     return True
 
 
-"""
-    Obtiene todos los eventos de la tabla 'events'.
-    
-    Returns:
-        list of dict: Una lista de diccionarios, cada uno representando un evento.
-                      Retorna una lista vacía si no hay eventos.
-"""
-def get_all_events(search_term=""):
-    
-    query = "SELECT id, name, event_date, category, price, available_tickets FROM events"
-    params = [] 
-    if search_term:
-        query += " WHERE (name ILIKE %s OR TO_CHAR(event_date, 'YYYY-MM-DD') ILIKE %s OR description ILIKE %s OR category ILIKE %s OR TO_CHAR(price, '999999.99') ILIKE %s OR TO_CHAR(available_tickets, '999999') ILIKE %s)"
-        search_param = f"%{search_term}%"
-        params.extend([search_param, search_param, search_param, search_param, search_param, search_param]) # Ahora esto funciona porque params es una lista
+def _filter_client_side(events: list[dict], search_term: str) -> list[dict]:
+    """
+    Filtro de búsqueda local (cliente) si la API no soporta búsqueda.
+    Busca en: name, description, event_date, category, price, available_tickets.
+    """
+    if not search_term:
+        return events
+
+    st = str(search_term).strip().lower()
+    if not st:
+        return events
+
+    out = []
+    for e in events:
+        # Construye un blob de texto simple con campos clave
+        blob = " ".join([
+            str(e.get("name", "")),
+            str(e.get("description", "")),
+            str(e.get("event_date", "")),
+            str(e.get("category", "")),
+            str(e.get("price", "")),
+            str(e.get("available_tickets", "")),
+        ]).lower()
+
+        if st in blob:
+            out.append(e)
+    return out
+
+
+# ----------------- API Calls -----------------
+def create_event(event_data: dict) -> bool:
+    """
+    Crea un evento vía API (POST /events).
+    """
+    if not _validate_event_data(event_data):
+        return False
+
+    # Validaciones / conversiones de tipos
+    try:
+        price = Decimal(event_data['price'])
+        tickets = int(event_data['tickets'])
+    except Exception:
+        messagebox.showerror("Error", "Los datos de precio o cupos no tienen el formato correcto.")
+        return False
+
+    iso = _to_iso_datetime(event_data.get("date", ""))
+    if not iso:
+        messagebox.showerror("Error", f"Formato de fecha no reconocido: {event_data.get('date')}")
+        return False
+
+    payload = {
+        "name": (event_data.get("name") or "").strip(),
+        "description": (event_data.get("description") or "").strip() or None,
+        "event_date": iso,
+        "category": (event_data.get("category") or "").strip() or None,
+        "price": float(price),
+        "available_tickets": tickets,
+        "creator_id": int(event_data.get("creator_id")),
+    }
 
     try:
-        events = db_manager.fetch_all_query(query, tuple(params))
-        return events
+        r = requests.post(f"{API_BASE}/events", json=payload, timeout=10)
+        if r.ok:
+            messagebox.showinfo("Éxito", "Evento guardado exitosamente.")
+            return True
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
+        return False
     except Exception as e:
-        print(f"Error al obtener todos los eventos: {e}")
+        messagebox.showerror("Error", f"No se pudo crear el evento:\n{e}")
+        return False
+
+
+def get_all_events(search_term: str = "") -> list[dict]:
+    """
+    Obtiene todos los eventos (GET /events) y aplica búsqueda local si se indica.
+    """
+    try:
+        r = requests.get(f"{API_BASE}/events", timeout=10)
+        if r.ok:
+            data = r.json() or []
+            return _filter_client_side(data, search_term)
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
+        return []
+    except Exception as e:
+        print(f"Error al obtener eventos: {e}")
         return []
 
-"""
-    Obtiene todos los eventos creados por un usuario específico.
-"""
-def get_events_by_creator(creator_id, search_term=""):
-    
-    query = "SELECT id, name, event_date, category, price, available_tickets FROM events WHERE creator_id = %s"
-    params = [creator_id]
 
-    if search_term:
-        # Aquí es donde se aplica el filtro de búsqueda en la consulta SQL
-        query += " AND (name ILIKE %s OR TO_CHAR(event_date, 'YYYY-MM-DD') ILIKE %s OR description ILIKE %s OR category ILIKE %s OR TO_CHAR(price, '999999.99') ILIKE %s) OR TO_CHAR(available_tickets, '999999') ILIKE %s"
-        search_param = f"%{search_term}%" # El '%' es para buscar coincidencias parciales (como un LIKE en SQL)
-        params.extend([search_param, search_param, search_param, search_param, search_param, search_param])
-
+def get_events_by_creator(creator_id: int, search_term: str = "") -> list[dict]:
+    """
+    Obtiene eventos por creador (GET /events?creator_id=...) y aplica búsqueda local.
+    """
     try:
-        events = db_manager.fetch_all_query(query, tuple(params)) 
-        return events
-    except Exception as e:
-        print(f"Error al obtener los eventos del creador: {e}")
+        r = requests.get(f"{API_BASE}/events", params={"creator_id": creator_id}, timeout=10)
+        # Si la API no soporta el parámetro (422), traemos todos y filtramos client-side
+        if r.status_code == 422:
+            all_ev = get_all_events(search_term="")
+            subset = [e for e in all_ev if str(e.get("creator_id")) == str(creator_id)]
+            return _filter_client_side(subset, search_term)
+
+        if r.ok:
+            data = r.json() or []
+            return _filter_client_side(data, search_term)
+
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
         return []
-    
-
-"""
-    Obtiene todos los detalles de un evento por su ID.
-    
-    Returns:
-        dict: Un diccionario con los detalles del evento, o None si no se encuentra.
-"""
-def get_event_by_id(event_id):
-    
-    query = "SELECT id, name, description, event_date, category, price, available_tickets, creator_id FROM events WHERE id = %s;"
-    params = (event_id,)
-
-    try:
-        event = db_manager.fetch_one_query(query, params)
-        return event
     except Exception as e:
-        print(f"Error al obtener los detalles del evento: {e}")
+        print(f"Error al obtener eventos del creador: {e}")
+        return []
+
+
+def get_event_by_id(event_id: int) -> dict | None:
+    """
+    Detalle de un evento (GET /events/{id})
+    """
+    try:
+        r = requests.get(f"{API_BASE}/events/{int(event_id)}", timeout=10)
+        if r.ok:
+            return r.json()
+        if r.status_code == 404:
+            return None
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
+        return None
+    except Exception as e:
+        print(f"Error al obtener el evento {event_id}: {e}")
         return None
 
-def delete_event(event_id, user_id):
-    """
-    Elimina un evento de la base de datos si el usuario es el creador.
-    """
-    query = "DELETE FROM events WHERE id = %s AND creator_id = %s;"
-    params = (event_id, user_id)
 
+def delete_event(event_id: int, user_id: int) -> bool:
+    """
+    Elimina un evento (DELETE /events/{id}?user_id=...).
+    """
     try:
-        success = db_manager.execute_query(query, params)
-        if success:
-            print(f"Evento {event_id} eliminado por el usuario {user_id}.")
+        r = requests.delete(f"{API_BASE}/events/{int(event_id)}", params={"user_id": int(user_id)}, timeout=10)
+        if r.ok:
             return True
-        else:
-            print("No se pudo eliminar el evento. El usuario no es el creador o no existe.")
+        if r.status_code == 404:
+            messagebox.showwarning("Aviso", "El evento no existe o no eres el propietario.")
             return False
-    except Exception as e:
-        print(f"Error al eliminar el evento: {e}")
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
         return False
-    
+    except Exception as e:
+        print(f"Error al eliminar el evento {event_id}: {e}")
+        return False
 
-    
-def update_event(event_data):
+
+def update_event(event_data: dict) -> bool:
     """
-    Actualiza un evento existente en la base de datos con los nuevos datos.
-    
-    Args:
-        event_data (dict): Un diccionario con los datos del evento a actualizar.
-    
-    Returns:
-        bool: True si la actualización fue exitosa, False en caso contrario.
+    Actualiza un evento (PUT /events/{id}).
+    Requiere: id, name, date, price, tickets, creator_id.
+    """
+    if not event_data.get("id"):
+        messagebox.showerror("Error", "Falta el ID del evento a actualizar.")
+        return False
+
+    # Validaciones / conversiones
+    try:
+        price = Decimal(event_data['price'])
+        tickets = int(event_data['tickets'])
+    except Exception:
+        messagebox.showerror("Error de Formato", "Precio y cupos deben ser números válidos.")
+        return False
+
+    iso = _to_iso_datetime(event_data.get("date", ""))
+    if not iso:
+        messagebox.showerror("Error", f"Formato de fecha no reconocido: {event_data.get('date')}")
+        return False
+
+    payload = {
+        "name": (event_data.get("name") or "").strip(),
+        "description": (event_data.get("description") or "").strip() or None,
+        "event_date": iso,
+        "category": (event_data.get("category") or "").strip() or None,
+        "price": float(price),
+        "available_tickets": tickets,
+        "creator_id": int(event_data.get("creator_id")),
+    }
+
+    try:
+        r = requests.put(f"{API_BASE}/events/{int(event_data['id'])}", json=payload, timeout=10)
+        if r.ok:
+            messagebox.showinfo("Éxito", "Evento actualizado exitosamente.")
+            return True
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
+        return False
+    except Exception as e:
+        messagebox.showerror("Error", f"No se pudo actualizar el evento:\n{e}")
+        return False
+
+
+def get_summary(creator_id: int | None = None) -> dict:
+    """
+    Resumen de eventos (GET /events/summary o /events/summary?creator_id=...).
+    Retorna dict con: total_events, total_available_tickets, sold_out
     """
     try:
-        # 1. Validar los datos
-        name = event_data.get('name')
-        description = event_data.get('description')
-        event_date_str = event_data.get('date')
-        category = event_data.get('category')
-        price_str = event_data.get('price')
-        tickets_str = event_data.get('tickets')
-        event_id = event_data.get('id')
-        creator_id = event_data.get('creator_id')
-
-        if not all([name, event_date_str, price_str, tickets_str, event_id, creator_id]):
-            messagebox.showerror("Error de Validación", "Todos los campos obligatorios deben estar llenos.")
-            return False
-
-        # 2. Convertir tipos de datos
-        try:
-            event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
-        except ValueError:
-            event_date = datetime.strptime(event_date_str, '%Y/%m/%d')
-            
-        price = float(price_str)
-        tickets = int(tickets_str)
-        
-        # 3. Preparar la consulta SQL
-        query = """
-            UPDATE events
-            SET
-                name = %s,
-                description = %s,
-                event_date = %s,
-                category = %s,
-                price = %s,
-                available_tickets = %s
-            WHERE id = %s AND creator_id = %s;
-        """
-        params = (name, description, event_date, category, price, tickets, event_id, creator_id)
-        
-        # 4. Ejecutar la consulta
-        success = db_manager.execute_query(query, params)
-        
-        if success:
-            messagebox.showinfo("Éxito", "Evento actualizado exitosamente.")
-        else:
-            messagebox.showerror("Error", "No se pudo actualizar el evento. Es posible que no tengas permisos para editarlo.")
-            
-        return success
-    
-    except ValueError as ve:
-        messagebox.showerror("Error de Formato", f"Por favor, asegúrate de que el precio y los cupos sean números válidos. Error: {ve}")
-        return False
+        params = {"creator_id": creator_id} if creator_id is not None else None
+        r = requests.get(f"{API_BASE}/events/summary", params=params, timeout=10)
+        if r.ok:
+            return r.json() or {}
+        # Si choca con /events/{id} (orden de rutas), cambia el path en API a /events-summary o reordena rutas.
+        messagebox.showerror("Error API", f"{r.status_code}: {r.text}")
+        return {"total_events": 0, "total_available_tickets": 0, "sold_out": 0}
     except Exception as e:
-        messagebox.showerror("Error de Actualización", f"Ocurrió un error al actualizar el evento: {e}")
-        return False
+        print("Error get_summary:", e)
+        return {"total_events": 0, "total_available_tickets": 0, "sold_out": 0}

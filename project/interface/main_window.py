@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 from .new_event import NewEventWindow
 from ..services import event_manager
 from .event_details import EventDetailsWindow
+from .main_window_components.main_banner import MainBanner
 
 class MainWindow(tk.Toplevel):
     """
@@ -57,6 +58,11 @@ class MainWindow(tk.Toplevel):
         Crea y organiza los widgets de la ventana principal.
     """  
     def _create_widgets(self):
+
+        banner = MainBanner(self, on_logout=self.close_window)
+        banner.pack(fill=tk.X, pady=(0,5))
+
+        self._create_summary_header()
         
         main_pane = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -136,6 +142,31 @@ class MainWindow(tk.Toplevel):
                                         style="Red.TButton",
                                         command=self.close_window)
         self.logout_button.pack(side=tk.LEFT, padx=5)
+
+    def _create_summary_header(self):
+        summary_frame = ttk.Frame(self)
+        summary_frame.pack(fill=tk.X, padx=10, pady=(10, 0))
+
+        self.var_total = tk.StringVar(value="0")
+        self.var_cupos = tk.StringVar(value="0")
+        self.var_agotados = tk.StringVar(value="0")
+
+        ttk.Label(summary_frame, text="Resumen:", font=("Arial", 12, "bold")).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(summary_frame, text="Eventos:").pack(side=tk.LEFT)
+        ttk.Label(summary_frame, textvariable=self.var_total, foreground="#333").pack(side=tk.LEFT, padx=(0, 15))
+        ttk.Label(summary_frame, text="Cupos totales:").pack(side=tk.LEFT)
+        ttk.Label(summary_frame, textvariable=self.var_cupos, foreground="#333").pack(side=tk.LEFT, padx=(0, 15))
+        ttk.Label(summary_frame, text="Agotados:").pack(side=tk.LEFT)
+        ttk.Label(summary_frame, textvariable=self.var_agotados, foreground="#333").pack(side=tk.LEFT)
+
+        # Carga inicial del resumen
+        self._load_summary()
+
+    def _load_summary(self):
+        data = event_manager.get_summary()  # global; si quieres por usuario: get_summary(self.user_id)
+        self.var_total.set(str(data.get("total_events", 0)))
+        self.var_cupos.set(str(data.get("total_available_tickets", 0)))
+        self.var_agotados.set(str(data.get("sold_out", 0)))
     
     """
         Abre la ventana del formulario de creación de evento como un popup.
@@ -146,7 +177,7 @@ class MainWindow(tk.Toplevel):
         self.attributes('-disabled', True) 
         
         # Crea la ventana del formulario
-        new_event_window = NewEventWindow(self, self.user_id)
+        new_event_window = NewEventWindow(self, user_id=self.user_id)
         
         # Espera a que la ventana del formulario se cierre
         self.wait_window(new_event_window)
@@ -176,6 +207,7 @@ class MainWindow(tk.Toplevel):
                                        values=(event['name'], event['event_date'], event['category'], event['price'], event['available_tickets']))
         else:    
             messagebox.showinfo("Información", "No se encontraron eventos en la base de datos.")
+        self._load_summary()
     
     """
         Carga los eventos creados por el usuario actual y los muestra en el Treeview.
